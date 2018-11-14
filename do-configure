@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Options for cmake
+# I should probably specify the compiler used
+PYTHON_EXECUTABLE="/usr/bin/python"
+PYTHON_LIBRARY="/usr/lib/x86_64-linux-gnu/libpython2.7.so"
+PYTHON_INCULDE_DIR="/usr/include/python2.7"
+
+# Remove old cmake files
+if [ -d "CMakeFiles" ]; then
+    echo
+    echo "Removing old CMakeFiles directory.."
+    rm -rf CMakeFiles
+    echo "...Done"
+fi
+if [ -f "CMakeCache.txt" ]; then
+    echo
+    echo "Removing old CMakeCache.txt..."
+    rm CMakeCache.txt
+    echo "...Done"
+fi
+if [ -f "cmake_install.cmake" ]; then
+    echo
+    echo "Removing old cmake_install.cmake..."
+    rm cmake_install.cmake
+    echo "...Done"
+fi
+echo
+
+
+# Run cmake
+echo "Running cmake..."
+cmake -DPYTHON_EXECUTABLE=$PYTHON_EXECUTABLE -DPYTHON_LIBRARY=$PYTHON_LIBRARY -DPYTHON_INCLUDE_DIR=$PYTHON_INCLUDE_DIR -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran .
+echo "...done"
+

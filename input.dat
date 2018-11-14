@@ -1,0 +1,58 @@
+# PYTHONPATH must include directory above plugin directory.
+#     Define either externally or here, then import plugin.
+# sys.path.insert(0, '/edfs/users/elvis/chem/v2rdm_casscf_public')
+import v2rdm_casscf
+import erpa 
+
+memory 3000 mb
+molecule mol {
+0 1
+c
+o 1  1.1282
+}
+
+set {
+  basis sto-3g
+  scf_type df
+  d_convergence 1e-8
+  reference rohf
+}
+
+set v2rdm_casscf {
+
+
+  positivity dqg
+
+  tpdm_write_full true
+  constrain_spin true
+
+  r_convergence  1e-5
+  e_convergence  1e-4
+  cg_convergence 1e-6
+  maxiter 1000000
+
+  optimize_orbitals true
+  orbopt_active_active_rotations true
+  semicanonicalize_orbitals false
+
+  mu_update_frequency 500
+
+  restricted_docc  [ 5, 0, 1, 1 ]
+  active           [ 0, 0, 0, 0 ]
+
+  molden_write true
+  nat_orbs     true
+}
+
+set erpa {
+  spin_adapt_erpa  true
+  pruning_threshold 1e-7
+  number_coefficients 20
+  coefficient_threshold 0.005
+
+}
+
+en,wfn = energy('v2rdm-casscf',return_wfn=True)
+
+energy('erpa',ref_wfn=wfn)
+

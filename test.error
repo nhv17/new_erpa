@@ -1,0 +1,15 @@
+forrtl: severe (174): SIGSEGV, segmentation fault occurred
+Image              PC                Routine            Line        Source             
+libifcoremt.so.5   00002B1C482B946C  for__signal_handl     Unknown  Unknown
+libpthread-2.17.s  00002B1C38099370  Unknown               Unknown  Unknown
+core.so            00002B1C40D3F44C  Unknown               Unknown  Unknown
+core.so            00002B1C40929419  Unknown               Unknown  Unknown
+core.so            00002B1C4092908D  Unknown               Unknown  Unknown
+python2.7          000000000045ABF7  Unknown               Unknown  Unknown
+python2.7          000000000045C294  PyDict_SetItem        Unknown  Unknown
+python2.7          000000000045E3BC  _PyModule_Clear       Unknown  Unknown
+python2.7          00000000004D0208  PyImport_Cleanup      Unknown  Unknown
+python2.7          00000000004E45AE  Unknown               Unknown  Unknown
+python2.7          000000000041576A  Py_Main               Unknown  Unknown
+libc-2.17.so       00002B1C389D0B35  __libc_start_main     Unknown  Unknown
+python2.7          0000000000414F5E  Unknown               Unknown  Unknown
