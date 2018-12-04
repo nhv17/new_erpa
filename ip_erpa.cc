@@ -218,7 +218,7 @@ void ERPASolver::IPExtendedRPA() {
     }
 
     // read TDPM from disk
-    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b,tei);
+    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b);
 
     // transform everything to NO basis
     //NOTransformation(D1a,D1b,D2aa,D2bb,D2ab,ha,hb,QmoA,QmoB);

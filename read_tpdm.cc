@@ -322,7 +322,7 @@ void ERPASolver::ReadTPDMLowMemory(double * D2aa, double * D2bb, double * D2ab, 
     }
 }
 
-void ERPASolver::ReadTPDM(double * D2aa, double * D2bb, double * D2ab, double * D1a, double * D1b, double * tei){
+void ERPASolver::ReadTPDM(double * D2aa, double * D2bb, double * D2ab, double * D1a, double * D1b) {
 
     memset((void*)D2aa,'\0',nmo_*nmo_*nmo_*nmo_*sizeof(double));
     memset((void*)D2bb,'\0',nmo_*nmo_*nmo_*nmo_*sizeof(double));
@@ -454,15 +454,6 @@ printf("%5i %5i %5i %5i %20.12lf %20.12lf\n",i,b,j,a,D2ab[i*nmo_*nmo_*nmo_+a*nmo
                         //D2aa[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l] = ab_val;//0.25 * aa_val;
                         //D2bb[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l] = ab_val;//0.25 * bb_val;
 
-                        // print here check against ci
-                        //printf("%5i %5i %20.12lf\n",ik,jl,D2ab[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l]);
-                        //printf("%5i %5i %5i %5i %20.12lf %20.12lf %20.12lf %20.12lf\n",i,j,k,l,ab_1,ab_2,ab_3,ab_4);
-                        //printf("%5i %5i %5i %5i %20.12lf %20.12lf\n",i,j,k,l,ab_1,tei[INDEX(i,k)*nmo_*(nmo_+1)/2+INDEX(j,l)]);
-                        //if ( fabs(dum) > 1e-6 ) {
-                        //    //printf("%5i %5i %20.12lf %20.12lf\n",ik,jl,D2aa[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l],D2bb[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l]);
-                        //    printf("%5i %5i %5i %5i %20.12lf %20.12lf\n",i,j,k,l,D2aa[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l],val);
-                        //}
-fflush(stdout);
                     }
                 }
             }
@@ -692,69 +683,6 @@ fflush(stdout);
         trb += D1b[i*nmo_+i];
 
     }
-
-/*
-    //printf("  tr(da) = %20.12lf\n",tra);
-    //printf("  tr(db) = %20.12lf\n",trb);
-
-    // check energy:
-    double en2 = 0.0;
-    for (int i = 0; i < nmo_; i++) {
-        for (int j = 0; j < nmo_; j++) {
-            for (int k = 0; k < nmo_; k++) {
-                for (int l = 0; l < nmo_; l++) {
-
-                    double eri = tei[INDEX(i,k)*nmo_*(nmo_+1)/2+INDEX(j,l)];
-                    //double eri = C_DDOT(nQ_,Qmo_ + nQ_*INDEX(i,k),1,Qmo_+nQ_*INDEX(j,l),1);
-                    en2 +=       eri * D2ab[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l];
-                    en2 += 0.5 * eri * D2aa[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l];
-                    en2 += 0.5 * eri * D2bb[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l];
-//int ik = i*nmo_+k;
-//int jl = j*nmo_+l;
-//printf("%5i %5i %20.12lf\n",ik,jl, D2ab[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l]);fflush(stdout);
-//if ( fabs(D2ab[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l]) > 1e-6 ) {
-//    printf("%5i %5i %5i %5i %20.12lf\n",i,j,k,l, D2ab[i*nmo_*nmo_*nmo_+j*nmo_*nmo_+k*nmo_+l]);fflush(stdout);
-//}
-
-                }
-            }
-        }
-    }
-
-    std::shared_ptr<MintsHelper> mints(new MintsHelper(reference_wavefunction_));
-    std::shared_ptr<Matrix> K1 (new Matrix(mints->so_potential()));
-    K1->add(mints->so_kinetic());
-    K1->transform(Ca_);
-
-    double en1 = 0.0;
-
-    long int offset = 0;
-    long int offset2 = 0;
-    for (int h = 0; h < nirrep_; h++) {
-
-        for (int i = 0; i < nmopi_[h]; i++) {
-
-            int ifull = i + offset;
-
-            for (int j = 0; j < nmopi_[h]; j++) {
-
-                int jfull = j + offset;
-
-
-                //en1 += oei_full_sym_[offset2 + INDEX(i,j)] * D1a[ifull*nmo_+jfull];
-                //en1 += oei_full_sym_[offset2 + INDEX(i,j)] * D1b[ifull*nmo_+jfull];
-                en1 += K1->pointer(h)[i][j] * D1a[ifull*nmo_+jfull];
-                en1 += K1->pointer(h)[i][j] * D1b[ifull*nmo_+jfull];
-            }
-        }
-
-        offset  += nmopi_[h] - frzvpi_[h];
-        offset2 += ( nmopi_[h] - frzvpi_[h] ) * ( nmopi_[h] - frzvpi_[h] + 1 ) / 2;
-
-    }
-
-    //printf("%20.12lf %20.12lf %20.12lf %20.12lf\n",en1,en2,enuc_,en1+en2+enuc_);
-*/
 
 }
 

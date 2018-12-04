@@ -1,0 +1,65 @@
+# PYTHONPATH must include directory above plugin directory.
+#     Define either externally or here, then import plugin.
+sys.path.insert(0, '/edfs/users/namvu/chem')
+import v2rdm_casscf
+sys.path.insert(0, '/edfs/users/namvu/software')
+import v2rdm_doci
+sys.path.insert(0, '/edfs/users/namvu/chem/deprince-group/plugins')
+import erpa
+
+memory 8000 mb
+
+molecule h4 {
+ h
+ h 1 R
+ h 2 R 1 180.0
+ h 3 R 2 180.0 1 180.0 
+# h 4 R 3 180.0 2 180.0
+# h 5 R 4 180.0 3 180.0
+# h 6 R 5 180.0 4 180.0
+# h 7 R 6 180.0 5 180.0
+symmetry c1
+}
+
+Rvals=[1.8]
+
+set {
+  guess sad
+  basis sto-3g
+  scf_type df
+  d_convergence 1e-8
+  reference rhf
+  maxiter 500
+}
+set v2rdm_doci {
+  positivity dqgt2
+  tpdm_write_full true
+  r_convergence  1e-6
+  e_convergence  1e-5
+  maxiter 1000000
+  orbopt_one_step true
+}
+set v2rdm_casscf {
+ nat_orbs true
+# tpdm_guess hf
+# constrain_spin true
+# cg_convergence 1e-6
+}
+# optimize_orbitals true
+# orbopt_active_active_rotations false
+# semicanonicalize_orbitals false
+# mu_update_frequency 500
+# restricted_docc  [ 0, 0, 0, 0, 0, 0, 0, 0 ]
+# active           [ 2, 0, 0, 0, 0, 2, 0, 0 ]
+# molden_write true
+
+set erpa {
+ pruning_threshold 1e-6
+ spin_adapt_erpa true
+ adiabatic_connection true
+}
+for R in Rvals:
+   h4.R = R
+   en, wfn = energy('v2rdm-doci',return_wfn=True)
+   energy('erpa',ref_wfn=wfn)
+

@@ -1,0 +1,103 @@
+
+    -----------------------------------------------------------------------
+          Psi4: An Open-Source Ab Initio Electronic Structure Package
+                               Psi4 1.2rc3.dev4 
+
+                         Git: Rev {psi4_N} 0e159c1 dirty
+
+
+    R. M. Parrish, L. A. Burns, D. G. A. Smith, A. C. Simmonett,
+    A. E. DePrince III, E. G. Hohenstein, U. Bozkaya, A. Yu. Sokolov,
+    R. Di Remigio, R. M. Richard, J. F. Gonthier, A. M. James,
+    H. R. McAlexander, A. Kumar, M. Saitow, X. Wang, B. P. Pritchard,
+    P. Verma, H. F. Schaefer III, K. Patkowski, R. A. King, E. F. Valeev,
+    F. A. Evangelista, J. M. Turney, T. D. Crawford, and C. D. Sherrill,
+    J. Chem. Theory Comput. 13(7) pp 3185--3197 (2017).
+    (doi: 10.1021/acs.jctc.7b00174)
+
+    -----------------------------------------------------------------------
+
+
+    Psi4 started on: Tuesday, 04 December 2018 11:55AM
+
+    Process ID: 5516
+    Host:       ed4
+    PSIDATADIR: /edfs/users/namvu/software/psi4_May_18/intel-release/share/psi4
+    Memory:     500.0 MiB
+    Threads:    1
+    
+  ==> Input File <==
+
+--------------------------------------------------------------------------
+# PYTHONPATH must include directory above plugin directory.
+#     Define either externally or here, then import plugin.
+# sys.path.insert(0, '/edfs/users/elvis/chem/v2rdm_casscf_public')
+import v2rdm_casscf
+import erpa 
+
+memory 3000 mb
+molecule mol {
+0 1
+c
+o 1  1.1282
+}
+
+set {
+  basis sto-3g
+  scf_type df
+  d_convergence 1e-8
+  reference rohf
+}
+
+set v2rdm_casscf {
+
+
+  positivity dqg
+
+  tpdm_write_full true
+  constrain_spin true
+
+  r_convergence  1e-5
+  e_convergence  1e-4
+  cg_convergence 1e-6
+  maxiter 1000000
+
+  optimize_orbitals true
+  orbopt_active_active_rotations true
+  semicanonicalize_orbitals false
+
+  mu_update_frequency 500
+
+  restricted_docc  [ 5, 0, 1, 1 ]
+  active           [ 0, 0, 0, 0 ]
+
+  molden_write true
+  nat_orbs     true
+}
+
+set erpa {
+  spin_adapt_erpa  true
+  pruning_threshold 1e-7
+  number_coefficients 20
+  coefficient_threshold 0.005
+
+}
+
+en,wfn = energy('v2rdm-casscf',return_wfn=True)
+
+energy('erpa',ref_wfn=wfn)
+
+--------------------------------------------------------------------------
+
+Traceback (most recent call last):
+  File "/edfs/users/namvu/software/psi4_May_18/intel-release/bin/psi4", line 264, in <module>
+    exec(content)
+  File "<string>", line 20, in <module>
+
+ImportError: No module named v2rdm_casscf
+
+    Psi4 stopped on: Tuesday, 04 December 2018 11:55AM
+    Psi4 wall time for execution: 0:00:00.04
+
+*** Psi4 encountered an error. Buy a developer more coffee!
+*** Resources and help at github.com/psi4/psi4.

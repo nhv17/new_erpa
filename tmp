@@ -30,8 +30,6 @@
 #include <psi4/liboptions/liboptions.h>
 //#include <psi4/libqt/qt.h>
 
-#include<psi4/libpsio/psio.hpp>
-
 #include<psi4/libtrans/integraltransform.h>
 #include<psi4/libtrans/mospace.h>
 
@@ -459,44 +457,6 @@ void ERPASolver::BuildBasis() {
         gems.push_back(mygems);
     }
 
-    std::shared_ptr<PSIO> psio (new PSIO());
-
-    if ( !psio->exists(PSIF_V2RDM_D2AB) ) throw PsiException("No D2ab on disk",__FILE__,__LINE__);
-    if ( !psio->exists(PSIF_V2RDM_D2AA) ) throw PsiException("No D2aa on disk",__FILE__,__LINE__);
-    if ( !psio->exists(PSIF_V2RDM_D2BB) ) throw PsiException("No D2bb on disk",__FILE__,__LINE__);
-
-    // determine active orbitals from CASSCF:
-    int ref_amo = 0;
-    psio->open(PSIF_V2RDM_D2AB,PSIO_OPEN_OLD);
-    psio->read_entry(PSIF_V2RDM_D2AB,"NUMBER ACTIVE ORBITALS",(char*)&ref_amo,sizeof(int));
-
-    bool * active_orbitals = (bool*)malloc(nmo_*sizeof(bool));
-    memset((void*)active_orbitals,'\0',nmo_*sizeof(bool));
-
-    psio_address addr = PSIO_ZERO;
-    for (int i = 0; i < ref_amo; i++) {
-        int t = 0;
-        psio->read(PSIF_V2RDM_D2AB,"ACTIVE ORBITALS",(char*)&t,sizeof(int),addr,&addr);
-        active_orbitals[t] = true;
-    }
-    psio->close(PSIF_V2RDM_D2AB,PSIO_OPEN_OLD);
-
-    // determine inactive orbitals from CASSCF:
-    int ref_inact = 0;
-    psio->open(PSIF_V2RDM_D2AB,PSIO_OPEN_OLD);
-    psio->read_entry(PSIF_V2RDM_D2AB,"NUMBER INACTIVE ORBITALS",(char*)&ref_inact,sizeof(int));
-
-    bool * inactive_orbitals = (bool*)malloc(nmo_*sizeof(bool));
-    memset((void*)inactive_orbitals,'\0',nmo_*sizeof(bool));
-
-    addr = PSIO_ZERO;
-    for (int i = 0; i < ref_inact; i++) {
-        int t = 0;
-        psio->read(PSIF_V2RDM_D2AB,"INACTIVE ORBITALS",(char*)&t,sizeof(int),addr,&addr);
-        inactive_orbitals[t] = true;
-    }
-    psio->close(PSIF_V2RDM_D2AB,PSIO_OPEN_OLD);
-
     bas_erpa_sym       = (int***)malloc(nirrep_*sizeof(int**));
     bas_ab_sym         = (int***)malloc(nirrep_*sizeof(int**));
     bas_full_sym       = (int***)malloc(nirrep_*sizeof(int**));
@@ -510,32 +470,6 @@ void ERPASolver::BuildBasis() {
     gems_ab            = (int*)malloc(nirrep_*sizeof(int));
     gems_full          = (int*)malloc(nirrep_*sizeof(int));
     gems_plus_core     = (int*)malloc(nirrep_*sizeof(int));
-
-
-    // AC-DOCI wants to know the NO occupation numbers before choosing excitations
-    double * D1a;
-    double * D1b;
-
-    if ( options_.get_bool("AC_DOCI") ) {
-        D1a  = (double*)malloc(nmo_*nmo_*sizeof(double));
-        D1b  = (double*)malloc(nmo_*nmo_*sizeof(double));
-        double * D2aa = (double*)malloc(nmo_*nmo_*nmo_*nmo_*sizeof(double));
-        double * D2bb = (double*)malloc(nmo_*nmo_*nmo_*nmo_*sizeof(double));
-        double * D2ab = (double*)malloc(nmo_*nmo_*nmo_*nmo_*sizeof(double));
-
-        memset((void*)D1a,'\0',nmo_*nmo_*sizeof(double));
-        memset((void*)D1b,'\0',nmo_*nmo_*sizeof(double));
-        memset((void*)D2aa,'\0',nmo_*nmo_*nmo_*nmo_*sizeof(double));
-        memset((void*)D2bb,'\0',nmo_*nmo_*nmo_*nmo_*sizeof(double));
-        memset((void*)D2ab,'\0',nmo_*nmo_*nmo_*nmo_*sizeof(double));
-
-        // read TDPM from disk
-        ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b);
-
-        free(D2aa);
-        free(D2bb);
-        free(D2ab);
-    }
 
     for (int h = 0; h < nirrep_; h++) {
 
@@ -594,53 +528,6 @@ void ERPASolver::BuildBasis() {
             count_ab++;
 
             if ( i != j ) {
-
-                if ( options_.get_bool("ADIABATIC_CONNECTION") || options_.get_bool("SPIN_ADAPT_ERPA") ) {
-
-                    int i_space;
-                    if  ( inactive_orbitals[i] ){
-                        i_space = 0;
-                    }else if ( active_orbitals[i] ){
-                        i_space = 1;
-                    }else{
-                        i_space = 2;
-                    }
-
-                    int j_space;
-                    if  ( inactive_orbitals[j] ){
-                        j_space = 0;
-                    }else if ( active_orbitals[j] ){
-                        j_space = 1;
-                    }else{
-                        j_space = 2;
-                    }
-
-                    if ( i_space == j_space && i_space == 2) continue;
-                    if ( i_space == j_space && i_space == 0) continue;
-
-                    if ( !options_.get_bool("ACTIVE_ACTIVE_EXCITATIONS") ) {
-                        if ( i_space == j_space && i_space == 1) continue;
-                    }
-
-                    if ( options_.get_bool("CORE_VALENCE_SEPARATION") ) {
-                        if ( i_space != 0 && j_space != 0) continue;
-                    }
-                    
-
-                    //// throw out active -> external?
-                    //if ( i_space == 0 && j_space == 2) continue;
-                    //// throw out external -> active?
-                    //if ( i_space == 2 && j_space == 0) continue;
-
-                }
-               
-                int ii = i + pitzer_offset[symmetry[i]];
-                int jj = j + pitzer_offset[symmetry[i]];
-                if ( fabs(D1a[ii*nmo_+ii] - D1a[jj*nmo_+jj]) < 1e-8 ) {
-		    printf("hey tossing %5i -> %5i excitation\n",ii,jj);
-		    continue;
-		}
-
                 ibas_erpa_sym[h][i][j] = count_erpa;
                 bas_erpa_sym[h][count_erpa][0]  = i;
                 bas_erpa_sym[h][count_erpa][1]  = j;
@@ -653,27 +540,20 @@ void ERPASolver::BuildBasis() {
 
     }
 
-    if ( options_.get_bool("AC_DOCI") ) {
-        free(D1a);
-        free(D1b);
-    }
-
     // if restarting a job, need to read a few energy-order arrays from disk...
-    if ( !options_["ERPA_CORRELATION"].has_changed() ) {
-        if ( options_["RESTART_FROM_CHECKPOINT_FILE"].has_changed() ) {
-            std::shared_ptr<PSIO> psio (new PSIO() );
-            psio->open(PSIF_V2RDM_CHECKPOINT,PSIO_OPEN_OLD);
+    if ( options_["RESTART_FROM_CHECKPOINT_FILE"].has_changed() ) {
+        std::shared_ptr<PSIO> psio (new PSIO() );
+        psio->open(PSIF_V2RDM_CHECKPOINT,PSIO_OPEN_OLD);
 
-            // energy order to pitzer order mapping array
-            psio->read_entry(PSIF_V2RDM_CHECKPOINT,"ENERGY_TO_PITZER_ORDER",
-                (char*)energy_to_pitzer_order,(nmo_-nfrzv_)*sizeof(int));
+        // energy order to pitzer order mapping array
+        psio->read_entry(PSIF_V2RDM_CHECKPOINT,"ENERGY_TO_PITZER_ORDER",
+            (char*)energy_to_pitzer_order,(nmo_-nfrzv_)*sizeof(int));
 
-            // energy order to pitzer order mapping array
-            psio->read_entry(PSIF_V2RDM_CHECKPOINT,"ENERGY_TO_PITZER_ORDER_REALLY_FULL",
-                (char*)energy_to_pitzer_order_really_full,nmo_*sizeof(int)); 
+        // energy order to pitzer order mapping array
+        psio->read_entry(PSIF_V2RDM_CHECKPOINT,"ENERGY_TO_PITZER_ORDER_REALLY_FULL",
+            (char*)energy_to_pitzer_order_really_full,nmo_*sizeof(int)); 
 
-            psio->close(PSIF_V2RDM_CHECKPOINT,1);
-        }
+        psio->close(PSIF_V2RDM_CHECKPOINT,1);
     }
 
     // new way:

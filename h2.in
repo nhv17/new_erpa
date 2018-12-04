@@ -1,0 +1,61 @@
+# PYTHONPATH must include directory above plugin directory.
+#     Define either externally or here, then import plugin.
+sys.path.insert(0, "/edfs/users/namvu/v2rdm_casscf_public")
+import v2rdm_casscf
+sys.path.insert(0, './..')
+import erpa 
+
+memory 3000 mb
+molecule mol {
+0 1
+H
+H 1  R 
+unit Bohr
+
+}
+Rvals=[1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0]
+
+set {
+  basis cc-pvtz
+  scf_type df
+  d_convergence 1e-8
+  reference rohf
+}
+
+set v2rdm_casscf{
+
+
+  positivity dqg
+
+  tpdm_write_full true
+  constrain_spin true
+
+  r_convergence  1e-5
+  e_convergence  1e-4
+  cg_convergence 1e-6
+  maxiter 1000000
+
+  optimize_orbitals true
+  orbopt_active_active_rotations false
+  semicanonicalize_orbitals false
+
+  mu_update_frequency 500
+
+  restricted_docc  [ 1,0,0,0,0,0,0,0 ]
+  active           [ 0,0,0,0,0,0,0,0 ]
+  nat_orbs true
+}
+
+set erpa {
+
+  pruning_threshold 1e-6
+  number_coefficients 20
+  coefficient_threshold 0.005
+  spin_adapt_erpa true
+
+ }
+for R in Rvals:
+  mol.R = R
+  en,wfn = energy('v2rdm-casscf',return_wfn=True)
+  energy('erpa',ref_wfn=wfn)
+

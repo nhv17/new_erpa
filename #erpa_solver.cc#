@@ -1,4 +1,5 @@
-/*
+:q
+ /*
  *@BEGIN LICENSE
  *
  * ERPA, a plugin to:
@@ -745,7 +746,7 @@ void ERPASolver::ExtendedRPA2() {
     }
 
     // read TDPM from disk
-    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b);
+    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b,tei);
 
     // build intermediates for funky 3-index sums:
     double * tempa  = (double*)malloc(nmo_*nmo_*nQ_*sizeof(double));
@@ -1939,8 +1940,6 @@ void ERPASolver::ExtendedRPA2() {
 
 double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
 
-    bool is_direct_erpa = options_.get_bool("DIRECT_ERPA");;
-
     //outfile->Printf("\n");
     //outfile->Printf("    ==> Alpha ERPA <==\n");
     //outfile->Printf("\n");
@@ -2004,7 +2003,7 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
     }
 
     // read TDPM from disk
-    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b);
+    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b,tei);
 
     //ReadOPDM(D1a,D1b);
 
@@ -2574,156 +2573,155 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
         }
 */
 
-        if ( !is_direct_erpa ) {
-            // A2 exchange-like terms: - (qj|ls) D(kq;is) - (is|qk) D(jq;ls)
-            for (long int hjl = 0; hjl < nirrep_; hjl++) {
+        // A2 exchange-like terms: - (qj|ls) D(kq;is) - (is|qk) D(jq;ls)
+        for (long int hjl = 0; hjl < nirrep_; hjl++) {
 
-                for (long int jl = 0; jl < gems_ab[hjl]; jl++) {
+            for (long int jl = 0; jl < gems_ab[hjl]; jl++) {
 
-                    long int j = bas_ab_sym[hjl][jl][0];
-                    long int l = bas_ab_sym[hjl][jl][1];
+                long int j = bas_ab_sym[hjl][jl][0];
+                long int l = bas_ab_sym[hjl][jl][1];
 
-                    int hj  = symmetry[j];
+                int hj  = symmetry[j];
 
-                    for (long int ik = 0; ik < gems_ab[hjl]; ik++) {
+                for (long int ik = 0; ik < gems_ab[hjl]; ik++) {
 
-                        long int i = bas_ab_sym[hjl][ik][0];
-                        long int k = bas_ab_sym[hjl][ik][1];
+                    long int i = bas_ab_sym[hjl][ik][0];
+                    long int k = bas_ab_sym[hjl][ik][1];
 
-                        if ( i == j || k == l ) continue;
+                    if ( i == j || k == l ) continue;
 
-                        int hi = symmetry[i];
+                    int hi = symmetry[i];
 
-                        int hij = hi ^ hj;
+                    int hij = hi ^ hj;
 
-                        if ( hij != h ) continue;
+                    if ( hij != h ) continue;
 
-                        double duma = 0.0;
-                        double dumb = 0.0;
+                    double duma = 0.0;
+                    double dumb = 0.0;
 
-                        // check if ij/kl are proper ERPA excitations
+                    // check if ij/kl are proper ERPA excitations
 
-                        long int ij = ibas_erpa_sym[h][i][j];
-                        long int kl = ibas_erpa_sym[h][k][l];
+                    long int ij = ibas_erpa_sym[h][i][j];
+                    long int kl = ibas_erpa_sym[h][k][l];
 
-                        if ( ij == -999 || kl == -999 ) continue;
+                    if ( ij == -999 || kl == -999 ) continue;
 
-                        for (int qs = 0; qs < gems_ab[hjl]; qs++ ) {
-                            
-                            long int q = bas_ab_sym[hjl][qs][0];
-                            long int s = bas_ab_sym[hjl][qs][1];
+                    for (int qs = 0; qs < gems_ab[hjl]; qs++ ) {
+                        
+                        long int q = bas_ab_sym[hjl][qs][0];
+                        long int s = bas_ab_sym[hjl][qs][1];
 
-                            double eint_aa = alpha_tei_aa[INDEX999(nmo_,q,j)*nmo_*nmo_+INDEX999(nmo_,l,s)];
+                        double eint_aa = alpha_tei_aa[INDEX999(nmo_,q,j)*nmo_*nmo_+INDEX999(nmo_,l,s)];
 
-                            long int kq = k*nmo_+q;
-                            long int is = i*nmo_+s;
+                        long int kq = k*nmo_+q;
+                        long int is = i*nmo_+s;
 
-                            duma -= eint_aa * D2aa[kq*n+is];
-                            dumb -= eint_aa * D2bb[kq*n+is];
+                        duma -= eint_aa * D2aa[kq*n+is];
+                        dumb -= eint_aa * D2bb[kq*n+is];
 
-                            //eint = alpha_tei[INDEX(i,s)*nn1o2+INDEX(q,k)];
+                        //eint = alpha_tei[INDEX(i,s)*nn1o2+INDEX(q,k)];
 
-                            //long int jq = j*nmo_+q;
-                            //long int ls = l*nmo_+s;
+                        //long int jq = j*nmo_+q;
+                        //long int ls = l*nmo_+s;
 
-                            //duma -= eint * D2aa[jq*n+ls];
-                            //dumb -= eint * D2bb[jq*n+ls];
-                        }
-
-                        long int id = ij * nh + kl;
-                        newA[id] += 0.5 * (duma + dumb);
-
-                        // AED: I think second exchange is a transpose of the first
-                        // A(ij,kl)(2) = A(lk,ji)(1)
-
-                        // if ij/kl are proper ERPA excitations, then ji/lk should be as well
-
-                        long int ji = ibas_erpa_sym[h][j][i];
-                        long int lk = ibas_erpa_sym[h][l][k];
-
-                        id = ji * nh + lk;
-
-                        newA[id] += 0.5 * (duma + dumb);
+                        //duma -= eint * D2aa[jq*n+ls];
+                        //dumb -= eint * D2bb[jq*n+ls];
                     }
+
+                    long int id = ij * nh + kl;
+                    newA[id] += 0.5 * (duma + dumb);
+
+                    // AED: I think second exchange is a transpose of the first
+                    // A(ij,kl)(2) = A(lk,ji)(1)
+
+                    // if ij/kl are proper ERPA excitations, then ji/lk should be as well
+
+                    long int ji = ibas_erpa_sym[h][j][i];
+                    long int lk = ibas_erpa_sym[h][l][k];
+
+                    id = ji * nh + lk;
+
+                    newA[id] += 0.5 * (duma + dumb);
                 }
             }
+        }
 
-            // A2 exchange-like terms (contribute to aa/bb blocks): - (qj|ls) D(qk;is) - (is|qk) D(jq;sl)
 
-            for (long int hjl = 0; hjl < nirrep_; hjl++) {
+        // A2 exchange-like terms (contribute to aa/bb blocks): - (qj|ls) D(qk;is) - (is|qk) D(jq;sl)
 
-                for (long int jl = 0; jl < gems_ab[hjl]; jl++) {
+        for (long int hjl = 0; hjl < nirrep_; hjl++) {
 
-                    long int j = bas_ab_sym[hjl][jl][0];
-                    long int l = bas_ab_sym[hjl][jl][1];
+            for (long int jl = 0; jl < gems_ab[hjl]; jl++) {
 
-                    int hj  = symmetry[j];
+                long int j = bas_ab_sym[hjl][jl][0];
+                long int l = bas_ab_sym[hjl][jl][1];
 
-                    for (long int ik = 0; ik < gems_ab[hjl]; ik++) {
+                int hj  = symmetry[j];
 
-                        long int i = bas_ab_sym[hjl][ik][0];
-                        long int k = bas_ab_sym[hjl][ik][1];
+                for (long int ik = 0; ik < gems_ab[hjl]; ik++) {
 
-                        if ( i == j || k == l ) continue;
+                    long int i = bas_ab_sym[hjl][ik][0];
+                    long int k = bas_ab_sym[hjl][ik][1];
 
-                        int hi = symmetry[i];
+                    if ( i == j || k == l ) continue;
 
-                        int hij = hi ^ hj;
+                    int hi = symmetry[i];
 
-                        if ( hij != h ) continue;
+                    int hij = hi ^ hj;
 
-                        // check if ij/kl are proper ERPA excitations
+                    if ( hij != h ) continue;
 
-                        long int ij = ibas_erpa_sym[h][i][j];
-                        long int kl = ibas_erpa_sym[h][k][l];
+                    // check if ij/kl are proper ERPA excitations
 
-                        if ( ij == -999 || kl == -999 ) continue;
+                    long int ij = ibas_erpa_sym[h][i][j];
+                    long int kl = ibas_erpa_sym[h][k][l];
 
-                        double dumab = 0.0;
-                        double dumba = 0.0;
+                    if ( ij == -999 || kl == -999 ) continue;
 
-                        for (int qs = 0; qs < gems_ab[hjl]; qs++ ) {
-                            
-                            long int q = bas_ab_sym[hjl][qs][0];
-                            long int s = bas_ab_sym[hjl][qs][1];
+                    double dumab = 0.0;
+                    double dumba = 0.0;
 
-                            double eint_ab = alpha_tei_ab[INDEX999(nmo_,q,j)*nmo_*nmo_+INDEX999(nmo_,l,s)];
+                    for (int qs = 0; qs < gems_ab[hjl]; qs++ ) {
+                        
+                        long int q = bas_ab_sym[hjl][qs][0];
+                        long int s = bas_ab_sym[hjl][qs][1];
 
-                            long int qk = q*nmo_+k;
-                            long int is = i*nmo_+s;
+                        double eint_ab = alpha_tei_ab[INDEX999(nmo_,q,j)*nmo_*nmo_+INDEX999(nmo_,l,s)];
 
-                            long int kq = k*nmo_+q;
-                            long int si = s*nmo_+i;
+                        long int qk = q*nmo_+k;
+                        long int is = i*nmo_+s;
 
-                            dumab += eint_ab * D2ab[qk*n+is];
-                            dumba += eint_ab * D2ab[kq*n+si];
+                        long int kq = k*nmo_+q;
+                        long int si = s*nmo_+i;
 
-                        }
-
-                        long int id = ij * nh + kl;
-                        if ( is_singlet ) {
-                            newA[id] += 0.5 * (dumab + dumba);
-                        }else {
-                            newA[id] -= 0.5 * (dumab + dumba);
-                        }
-
-                        // AED: I think second exchange is a transpose of the first
-                        // A(ij,kl)(2) = A(ji,lk)(1)
-
-                        // if ij/kl are proper ERPA excitations, then ji/lk should be as well
-
-                        long int ji = ibas_erpa_sym[h][j][i];
-                        long int lk = ibas_erpa_sym[h][l][k];
-
-                        id = ji * nh + lk;
-
-                        if ( is_singlet ) {
-                            newA[id] += 0.5 * (dumab + dumba);
-                        }else {
-                            newA[id] -= 0.5 * (dumab + dumba);
-                        }
+                        dumab += eint_ab * D2ab[qk*n+is];
+                        dumba += eint_ab * D2ab[kq*n+si];
 
                     }
+
+                    long int id = ij * nh + kl;
+                    if ( is_singlet ) {
+                        newA[id] += 0.5 * (dumab + dumba);
+                    }else {
+                        newA[id] -= 0.5 * (dumab + dumba);
+                    }
+
+                    // AED: I think second exchange is a transpose of the first
+                    // A(ij,kl)(2) = A(ji,lk)(1)
+
+                    // if ij/kl are proper ERPA excitations, then ji/lk should be as well
+
+                    long int ji = ibas_erpa_sym[h][j][i];
+                    long int lk = ibas_erpa_sym[h][l][k];
+
+                    id = ji * nh + lk;
+
+                    if ( is_singlet ) {
+                        newA[id] += 0.5 * (dumab + dumba);
+                    }else {
+                        newA[id] -= 0.5 * (dumab + dumba);
+                    }
+
                 }
             }
         }
@@ -2877,32 +2875,31 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
                 Bmat->pointer()[ij][kl] = newB[ij*totdim+kl];
             }
         }
-   //      outfile->Printf("A is");
-   //     Amat->print();
-   //     outfile->Printf("B is");
-   //     Bmat->print();
 
         // symmetrize
         // A(kl,ji) = A(ij,kl)
         // A(kl,ji) = A(lk,ij)
 
-        // project out null (and negative) space of A matrix
+
         std::shared_ptr<Matrix> eigvec ( new Matrix(totdim,totdim) );
         std::shared_ptr<Vector> eigval ( new Vector(totdim) );
-//        outfile->Printf("A is");
-//        Amat->print();
-//        outfile->Printf("B is");
-//        Bmat->print();
-       // eigval->print();
+       // Amat->print();
+       // Bmat->print();
+        //eigval->print();
 
-        bool prune = false;
+        bool prune = true;
         long int newdim = 0;
+        // outfile->Printf("old A is");
+        //   Amat->print();
+        //   outfile->Printf("old B is");
+        //   Bmat->print();
 
         // get rid of small/negative eigenvalues of A?
         if ( prune ) {
-
-            Amat->diagonalize(eigvec,eigval,descending);
-
+        // project out null (and negative) space of A matrix
+        Amat->diagonalize(eigvec,eigval,descending);
+//           outfile->Printf("Eigenval of A\n");
+//	   eigval->print();
             newdim = 0;
             int * map = (int*)malloc(totdim*sizeof(int));
             memset((void*)map,'\0',totdim*sizeof(int));
@@ -2925,69 +2922,64 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
                     Amat->pointer()[ij][kl] = newA[ij*totdim+kl];
                 }
             }
-            Amat->transform(eigvec);
-            Bmat->transform(eigvec);
-            for (long int i = 0; i < newdim; i++) {
-                for (long int j = 0; j < newdim; j++) {
-                    newA[i*newdim+j] = Amat->pointer()[i][j];
-                    newB[i*newdim+j] = Bmat->pointer()[i][j];
-                }
-            }
+         Amat->transform(eigvec);
+     //       outfile->Printf("new A after transformation is/n");
+     //       Amat->print();
 
-        }else {
+         Bmat->transform(eigvec);
+     //       outfile->Printf("new B after transformation is/n");
+     //       Bmat->print();
+         for (long int i = 0; i < newdim; i++) {
+             for (long int j = 0; j < newdim; j++) {
+                 newA[i*newdim+j] = Amat->pointer()[i][j];
+                 newB[i*newdim+j] = Bmat->pointer()[i][j];
+             }
+         } 
+        }
+        else {
             newdim = totdim;
         }
 
-        if ( newdim < totdim ) {
-            outfile->Printf("\n");
-            outfile->Printf("    <<< warning >>> ");
-            outfile->Printf("\n");
-            outfile->Printf("    reducing dimension of [ k*l, [H, j*i ] ] from %5i to %5i\n",totdim,newdim);
-            outfile->Printf("\n");
-        }
-
-        std::shared_ptr<Matrix>  Cmat (new Matrix(totdim,totdim));
-        std::shared_ptr<Matrix>  Cmatl (new Matrix(totdim,totdim));
-        bool * energy_is_real = (bool*)malloc(totdim*sizeof(bool));
-
+        //if ( newdim < totdim ) {
+        //    outfile->Printf("\n");
+        //    outfile->Printf("    <<< warning >>> ");
+        //    outfile->Printf("\n");
+        //    outfile->Printf("    reducing dimension of [ k*l, [H, j*i ] ] from %5i to %5i\n",totdim,newdim);
+        //    outfile->Printf("\n");
+        //}
+          std::shared_ptr<Matrix>  Cmat (new Matrix(totdim,totdim));
+//          std::shared_ptr<Matrix>  Cmatl (new Matrix(totdim,totdim));
+          
         int info = 0;
         if ( prune ) {
             info = SymmetricGeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
-             outfile->Printf("Symmetric_solver\n");
-            // back transform wave functions to original untruncated basis
-            for (int i = 0; i < newdim; i++) {
-                for (int j = 0; j < totdim; j++) {
-                    double dum = 0.0;
-                    for (int k = 0; k < newdim; k++) {
-                        dum += eigvec->pointer()[j][k] * newB[i * newdim + k];
-                    }
-                    Cmat->pointer()[i][j] = dum;
-                }
-            }
 
-        }else {
-            // symmetrize A Nam, remove!
-            for (int i = 0; i < newdim; i++) {
-                for (int j = i; j < newdim; j++) {
-                    double dum = newA[i*newdim +j] + newA[j*newdim+i];
-                    newA[i*newdim+j] = 0.5 * dum;
-                    newA[j*newdim+i] = 0.5 * dum;
-	        }
-	    }
-            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig,energy_is_real);
-              outfile->Printf("General_solver\n");
-            // no need to back transform wave functions to original untruncated basis in this case
-            // NOTE: this is either the left or right eigenfunction ... still need the other one
-            for (int i = 0; i < newdim; i++) {
+        // back transform wave functions to original untruncated basis
+        for (int i = 0; i < newdim; i++) {
+            for (int j = 0; j < totdim; j++) {
+                double dum = 0.0;
+                for (int k = 0; k < newdim; k++) {
+                    dum += eigvec->pointer()[j][k] * newB[i * newdim + k];
+                }
+                Cmat->pointer()[i][j] = dum;
+            }
+        }
+ //           outfile->Printf("\n");
+ //            outfile->Printf("the eigenvector\n"); 
+ //            	Cmat->print();
+
+        } else {
+            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
+          for (int i = 0; i < newdim; i++) {
                 for (int j = 0; j < totdim; j++) {
                     Cmat->pointer()[i][j] = newB[i * newdim + j];
-                    Cmatl->pointer()[i][j] = newA[i * newdim + j];
+                //    Cmatl->pointer()[i][j] = newA[i * newdim + j];
                 }
             }
-                //  outfile->Printf("Cmat is");
-                //  Cmat->print();
-                //  outfile->Printf("Cmat left is");
-                //  Cmatl->print();
+                  outfile->Printf("Cmat is");
+                  Cmat->print();
+                //     outfile->Printf("Cmat left is");
+                //    Cmatl->print();
         }
 
         // oscillator strengths: 
@@ -2999,7 +2991,7 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
             outfile->Printf("\n");
             throw PsiException("Error: diagonalization failed.",__FILE__,__LINE__);
         }
-        //Cmatl->transpose();
+
         //outfile->Printf("    state");
         //outfile->Printf("          energy (Eh)");
         //outfile->Printf("       ex energy (Eh)");
@@ -3010,154 +3002,82 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
           
             //printf("%5i %20.12lf\n",state,eig[state]);
             if ( eig[state] > 0.0 ) {
-
                 if ( prune ) eig[state] = 1.0 / eig[state];
-		else if ( !energy_is_real[state] ) {
-		    continue;
-		}
-
+//                outfile->Printf("exitation energy");
+//	        outfile->Printf("%20.12lf\n", eig[state]);}	
                 // avoid considering nonsensical states
-                if ( fabs(eig[state] ) > 10000.0) continue;
-             //   outfile->Printf("\neigenvalue %20.12lf", eig[state]);
+                if ( fabs(eig[state] ) > 10000.0 ) continue;
+
+     //           outfile->Printf("exitation energy");
+     //           outfile->Printf("%20.12lf\n", eig[state]);	
 //printf("hey excited state: %20.12lf\n",eig[state]+e2+e1+enuc_);
-               // normalize C://origin 11/01/
-          //     double nrm = 0.0;
-          //     double * C = Cmat->pointer()[state];
-          //     for (int ij = 0; ij < nh; ij++) {
-          //         int i  = bas_erpa_sym[h][ij][0];
-          //         int j  = bas_erpa_sym[h][ij][1];
-          //         int hi = symmetry[i];
-          //         int hj = symmetry[j];
-          //         for( int kk = 0; kk < amopi_[hi]; kk++){
-          //             int k   = kk + pitzer_offset[hi];
-          //             int kj  = ibas_erpa_sym[h][k][j];
+                // normalize C:
+                double nrm = 0.0;
+                double * C = Cmat->pointer()[state];
+                for (int ij = 0; ij < nh; ij++) {
+                    int i  = bas_erpa_sym[h][ij][0];
+                    int j  = bas_erpa_sym[h][ij][1];
+                    int hi = symmetry[i];
+                    int hj = symmetry[j];
+                    for( int kk = 0; kk < amopi_[hi]; kk++){
+                        int k   = kk + pitzer_offset[hi];
+                        int kj  = ibas_erpa_sym[h][k][j];
 
-          //             // check if kj is a proper ERPA excitations
-          //             if ( kj == -999 ) continue;
+                        // check if kj is a proper ERPA excitations
+                        if ( kj == -999 ) continue;
 
-          //             nrm    += 0.5 * C[ij] * C[kj] * D1a[k*amo_+i];
-          //             nrm    += 0.5 * C[ij] * C[kj] * D1b[k*amo_+i];
-          //         }
-          //         for( int ll = 0; ll < amopi_[hj]; ll++){
-          //             int l  = ll + pitzer_offset[hj];
-          //             int il = ibas_erpa_sym[h][i][l];
+                        nrm    += 0.5 * C[ij] * C[kj] * D1a[k*amo_+i];
+                        nrm    += 0.5 * C[ij] * C[kj] * D1b[k*amo_+i];
+                    }
+                    for( int ll = 0; ll < amopi_[hj]; ll++){
+                        int l  = ll + pitzer_offset[hj];
+                        int il = ibas_erpa_sym[h][i][l];
 
-          //             // check if il is a proper ERPA excitations
-          //             if ( il == -999 ) continue;
+                        // check if il is a proper ERPA excitations
+                        if ( il == -999 ) continue;
 
-          //             nrm   -= 0.5 * C[ij] * C[il] * D1a[j*amo_+l];
-          //             nrm   -= 0.5 * C[ij] * C[il] * D1b[j*amo_+l];
-          //         }
-          //     }
+                        nrm   -= 0.5 * C[ij] * C[il] * D1a[j*amo_+l];
+                        nrm   -= 0.5 * C[ij] * C[il] * D1b[j*amo_+l];
+                    }
+                }
 
+                if ( nrm < 0.0 ) continue;
 
-          //     if ( nrm < 0.0 ) continue;
-
-          //     nrm = sqrt(nrm);
-          //     outfile->Printf("\n norm is %20lf",nrm);
-          //      outfile->Printf("\n");
-          //     for (int ij = 0; ij < nh; ij++) {
-          //         C[ij] /= nrm;
-          //     }
-          //    outfile->Printf("normalized eigenvector\n");
-          //    Cmat->print();
-            // normalize C with both right and left eigenvectors
-            // Ckl(l)<0|[k*l,j*i|0>Cij(r)
-            // outfile->Printf("\nnormalize both left and right eigevectors\n");
-             double nrm = 0.0;
-             double * C = Cmat->pointer()[state];
-             double * Cl = Cmatl->pointer()[state];
-             for (int ij = 0; ij < nh; ij++) {
-                 int i  = bas_erpa_sym[h][ij][0];
-                 int j  = bas_erpa_sym[h][ij][1];
-                 int hi = symmetry[i];
-                 int hj = symmetry[j];
-                 for( int kk = 0; kk < amopi_[hi]; kk++){
-                     int k   = kk + pitzer_offset[hi];
-                     int kj  = ibas_erpa_sym[h][k][j];
-
-                     // check if kj is a proper ERPA excitations
-                     if ( kj == -999 ) continue;
-                     nrm    += 0.5 * C[ij] * Cl[kj] * D1a[k*amo_+i];
-                     nrm    += 0.5 * C[ij] * Cl[kj] * D1b[k*amo_+i];
-                 }
-                 for( int ll = 0; ll < amopi_[hj]; ll++){
-                     int l  = ll + pitzer_offset[hj];
-                     int il = ibas_erpa_sym[h][i][l];
-
-                     // check if il is a proper ERPA excitations
-                     if ( il == -999 ) continue;
-
-                     nrm   -= 0.5 * C[ij] * Cl[il] * D1a[j*amo_+l];
-                     nrm   -= 0.5 * C[ij] * Cl[il] * D1b[j*amo_+l];
-                 }
-             }
-            
-             if ( nrm < 0.0 ) continue;
-
-             nrm = sqrt(nrm);
-           //  outfile->Printf("\n norm is %20lf\n\n\n", nrm);
-             for (int ij = 0; ij < nh; ij++) {
-                 C[ij] /= nrm;
-                 Cl[ij]/= nrm;
-             }
- 
-                double * TDa = (double*)malloc(nso_*nso_*sizeof(double));//right eigvec
+                  nrm = sqrt(nrm);
+//                 outfile->Printf("norm is %20.12lf\n", nrm);
+                for (int ij = 0; ij < nh; ij++) {
+                    C[ij] /= nrm;
+                }
+//              outfile->Printf("\n Normalized eigenvector\n");
+//      	      Cmat->print();	
+                double * TDa = (double*)malloc(nso_*nso_*sizeof(double));
                 double * TDb = (double*)malloc(nso_*nso_*sizeof(double));
-                double * TDla = (double*)malloc(nso_*nso_*sizeof(double));//for left eigenvectors
-                double * TDlb = (double*)malloc(nso_*nso_*sizeof(double));
 
                 memset((void*)TDa,'\0',nso_*nso_*sizeof(double));
                 memset((void*)TDb,'\0',nso_*nso_*sizeof(double));
-                memset((void*)TDla,'\0',nso_*nso_*sizeof(double));
-                memset((void*)TDlb,'\0',nso_*nso_*sizeof(double));
 
                 // build transition density matrix:
                 TransitionDensity_SpinAdapted(Cmat->pointer()[state], D1a, D1b, TDa,TDb,nh,h);
-                TransitionDensity_SpinAdaptedl(Cmatl->pointer()[state], D1a, D1b, TDla,TDlb,nh,h);
                 if ( !is_singlet ) {
                    C_DSCAL(nso_*nso_,-1.0,TDb,1);
-                   C_DSCAL(nso_*nso_,-1.0,TDlb,1);
                 }
+
                 // use transition density matrix to update ground-state 2-RDM
-       //         for (int p = 0; p < nso_; p++) {
-       //             for (int q = 0; q < nso_; q++) {
-       //                 for (int r = 0; r < nso_; r++) {
-       //                     for (int s = 0; s < nso_; s++) {
-       //                         double ga_rp = TDa[p*nso_+r]; // careful with transpose ...
-       //                         double gb_qs = TDb[s*nso_+q];
-       //                         // Eq(10)
-       //                         D2ab_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += ga_rp * gb_qs;// * 0.5;
-       //                         //if ( p != q && r != s) {
-
-       //                             double ga_qs = TDa[s*nso_+q];
-       //                             D2aa_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += ga_rp * ga_qs;// * 0.5;
-
-       //                             double gb_rp = TDb[p*nso_+r]; // careful with transpose ...
-       //                             D2bb_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += gb_rp * gb_qs;// * 0.5;
-       //                         //}
-
-       //                     }
-       //                 }
-       //             }
-       //         }
-       //         free(TDa);
-       //         free(TDb);
-               for (int p = 0; p < nso_; p++) {
+                for (int p = 0; p < nso_; p++) {
                     for (int q = 0; q < nso_; q++) {
                         for (int r = 0; r < nso_; r++) {
                             for (int s = 0; s < nso_; s++) {
-                                double gra_pr = TDa[r*nso_+p]; //right
-                                double grb_pr = TDb[r*nso_+p]; 
-                                double gla_qs = TDla[s*nso_+q];//left
-                                double glb_qs = TDlb[s*nso_+q];
-                                // Eq(10)       <0|r*p|v><v|s*q|0>
-                                D2ab_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += gra_pr * glb_qs;// * 0.5;
+                                double ga_rp = TDa[p*nso_+r]; // careful with transpose ...
+                                double gb_qs = TDb[s*nso_+q];
+                                // Eq(10)
+                                D2ab_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += ga_rp * gb_qs;// * 0.5;
                                 //if ( p != q && r != s) {
 
-                                    D2aa_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += gra_pr * gla_qs;// * 0.5;
+                                    double ga_qs = TDa[s*nso_+q];
+                                    D2aa_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += ga_rp * ga_qs;// * 0.5;
 
-                                    D2bb_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += grb_pr * glb_qs;// * 0.5;
+                                    double gb_rp = TDb[p*nso_+r]; // careful with transpose ...
+                                    D2bb_prime[p*nso_*nso_*nso_+q*nso_*nso_+r*nso_+s] += gb_rp * gb_qs;// * 0.5;
                                 //}
 
                             }
@@ -3166,8 +3086,7 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
                 }
                 free(TDa);
                 free(TDb);
-                free(TDla);
-                free(TDlb);
+
 
                 //outfile->Printf(" NEWWAY   %5i %20.12lf %20.12lf %20.12lf\n",newdim-state,eig[state]+e2+e1+enuc_,eig[state],eig[state] * 27.21138);
 
@@ -3212,7 +3131,6 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
         free(newB);
         free(cc);
         free(eig);
-	free(energy_is_real);
     }
 
     // check energy
@@ -3228,7 +3146,7 @@ double ERPASolver::DOCIAlphaERPA(double alpha,bool is_singlet) {
 
                     double eint = tei[INDEX(i,k)*nn1o2+INDEX(j,l)];
 
-                    e2 +=       eint * D2ab[(i*nmo_+j)*n+(k*nmo_+l)];//D2ba=D2ab??
+                    e2 +=       eint * D2ab[(i*nmo_+j)*n+(k*nmo_+l)];
                     e2 += 0.5 * eint * D2aa[(i*nmo_+j)*n+(k*nmo_+l)];
                     e2 += 0.5 * eint * D2bb[(i*nmo_+j)*n+(k*nmo_+l)];
 
@@ -4277,7 +4195,7 @@ double ERPASolver::AlphaERPA(double alpha,bool is_singlet,bool is_excited_state_
         std::shared_ptr<Vector> eigval ( new Vector(totdim) );
 
         Amat->diagonalize(eigvec,eigval,descending);
-        eigval->print();
+        //eigval->print();
 
         bool prune = true;
         long int newdim = 0;
@@ -4334,9 +4252,7 @@ double ERPASolver::AlphaERPA(double alpha,bool is_singlet,bool is_excited_state_
         if ( prune ) {
             info = SymmetricGeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
         }else {
-            bool * energy_is_real = (bool*)malloc(totdim*sizeof(bool));
-            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig,energy_is_real);
-            free(energy_is_real);
+            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
         }
 
         // back transform wave functions to original untruncated basis
@@ -4527,55 +4443,47 @@ double ERPASolver::AlphaERPA(double alpha,bool is_singlet,bool is_excited_state_
                     //outfile->Printf(" NEWWAY   %5i %20.12lf %20.12lf %20.12lf\n",newdim-state,eig[state]+e2+e1+enuc_,eig[state],eig[state] * 27.21138);
 
                     // evaluate violations in the consistency condition [1-d(tu) ]n(t) c(ut) + sum_{v!=w} [ 2D(tv;uw) + 2D(t\bar{v};u\bar{w}) ] c(vw).
+                    double violation = 0.0;
+                    int nact = 0;
+                    for (int t = 0; t < nso_; t++) {
+                        if ( active_reference_orbitals_[t] ) nact++;
+                    }
+                    for (int t = 0; t < nso_; t++) {
+                        if ( !active_reference_orbitals_[t] ) continue;
+                        for (int u = 0; u < nso_; u++) {
+                            if ( !active_reference_orbitals_[u] ) continue;
+
+                            double sum = 0.0;
+                            if ( t != u ) {
+                                int ut = ibas_erpa_sym[h][u][t];
+                                sum += D1a[t*nso_+t] * C[ut];
+                            }
+                            for (int v = 0; v < nso_; v++) {
+                                if ( !active_reference_orbitals_[v] ) continue;
+                                for (int w = 0; w < nso_; w++) {
+                                    if ( !active_reference_orbitals_[w] ) continue;
+                                    if ( w == v ) continue;
+
+                                    long int tne = full_to_no_ext_[t];
+                                    long int vne = full_to_no_ext_[v];
+                                    long int une = full_to_no_ext_[u];
+                                    long int wne = full_to_no_ext_[w];
+
+                                    double d2aa = D2aa[tne*nne*nne*nne+vne*nne*nne+une*nne+wne];
+                                    double d2ab = D2ab[tne*nne*nne*nne+vne*nne*nne+une*nne+wne];
+                                    int vw = ibas_erpa_sym[h][v][w];
+                                    sum += (d2aa + d2ab) * C[vw];
+                                }
+                            }
+                            violation += sum * sum;
+                        }
+                    }
+
                     double val = 2./3. * eig[state] * (dumx*dumx+dumy*dumy+dumz*dumz);
 
                     outfile->Printf(" LOWMEM   %5i %20.12lf %20.12lf %20.12lf %20.12lf\n",newdim-state,eig[state]+e2+e1+enuc_,eig[state],eig[state] * 27.21138, val);
                     outfile->Printf("                Transition Moment: X: %10.6lf    Y: %10.6lf   Z: %10.6lf\n", dumx, dumy, dumz);
-
-                    if ( options_.get_bool("ACTIVE_ACTIVE_EXCITATIONS") ) {
-                        double violation = 0.0;
-                        int nact = 0;
-                        for (int t = 0; t < nso_; t++) {
-                            if ( active_reference_orbitals_[t] ) nact++;
-                        }
-                        for (int t = 0; t < nso_; t++) {
-                            if ( !active_reference_orbitals_[t] ) continue;
-                            for (int u = 0; u < nso_; u++) {
-                                if ( !active_reference_orbitals_[u] ) continue;
-
-                                double sum1 = 0.0;
-                                if ( t != u ) {
-                                    int ut = ibas_erpa_sym[h][u][t];
-                                    sum1 += D1a[t*nso_+t] * C[ut];
-                                }
-                                double sum2 = 0.0;
-                                for (int v = 0; v < nso_; v++) {
-                                    if ( !active_reference_orbitals_[v] ) continue;
-                                    for (int w = 0; w < nso_; w++) {
-                                        if ( !active_reference_orbitals_[w] ) continue;
-                                        if ( w == v ) continue;
-
-                                        long int tne = full_to_no_ext_[t];
-                                        long int vne = full_to_no_ext_[v];
-                                        long int une = full_to_no_ext_[u];
-                                        long int wne = full_to_no_ext_[w];
-
-                                        double d2aa = D2aa[tne*nne*nne*nne+vne*nne*nne+une*nne+wne];
-                                        double d2ab = D2ab[tne*nne*nne*nne+vne*nne*nne+une*nne+wne];
-                                        int vw = ibas_erpa_sym[h][v][w];
-                                        sum2 += (d2aa + d2ab) * C[vw];
-                                    }
-                                }
-                                violation += (sum1 + sum2) * (sum1 + sum2);
-                                if ( t != u ) {
-                                    int ut = ibas_erpa_sym[h][u][t];
-                                    outfile->Printf("%5i %5i %20.12lf %20.12lf %20.12lf %20.12lf %20.12lf\n",t+1,u+1,D1a[t*nso_+t],C[ut],sum1,sum2,sum1+sum2);
-                                }
-                            }
-                        }
-                        outfile->Printf("                Consistency violation: %20.12lf\n",sqrt(violation/(nact*nact)));
-                    }
-
+                    outfile->Printf("                Consistency violation: %20.12lf\n",sqrt(violation/(nact*nact)));
 
                     bool * skip = (bool*)malloc(nh*sizeof(bool));
                     memset((void*)skip,'\0',nh*sizeof(bool));
@@ -5554,7 +5462,7 @@ void ERPASolver::SpinAdaptedExtendedRPA() {
     }
 
     // read TDPM from disk
-    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b);
+    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b,tei);
 
     //ReadOPDM(D1a,D1b);
 
@@ -6718,9 +6626,7 @@ void ERPASolver::SpinAdaptedExtendedRPA() {
         if ( prune ) {
             info = SymmetricGeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
         }else {
-	    bool * energy_is_real = (bool*)malloc(totdim*sizeof(bool));
-            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig,energy_is_real);
-            free(energy_is_real);
+            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
         }
 
         // back transform wave functions to original untruncated basis
@@ -7158,7 +7064,7 @@ void ERPASolver::NewExtendedRPA(std::string type) {
     }
 
     // read TDPM from disk
-    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b);
+    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b,tei);
 
     //ReadOPDM(D1a,D1b);
 
@@ -8267,9 +8173,7 @@ void ERPASolver::NewExtendedRPA(std::string type) {
         if ( prune ) {
             info = SymmetricGeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
         }else {
-	    bool * energy_is_real = (bool*)malloc(totdim*sizeof(bool));
-            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig,energy_is_real);
-            free(energy_is_real);
+            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
         }
 
         // back transform wave functions to original untruncated basis
@@ -8627,7 +8531,7 @@ void ERPASolver::OldExtendedRPA(std::string type) {
     F_DGEMM('t','n',nmo_*(nmo_+1)/2,nmo_*(nmo_+1)/2,nQ_,1.0,Qmo_,nQ_,Qmo_,nQ_,0.0,tei,nmo_*(nmo_+1)/2);
 
     // read TDPM from disk
-    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b);
+    ReadTPDM(D2aa,D2bb,D2ab,D1a,D1b,tei);
 
     long int n = nmo_*nmo_;
 
@@ -9302,9 +9206,7 @@ void ERPASolver::OldExtendedRPA(std::string type) {
         if ( prune ) {
             info = SymmetricGeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
         }else {
-	    bool * energy_is_real = (bool*)malloc(totdim*sizeof(bool));
-            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig,energy_is_real);
-            free(energy_is_real);
+            GeneralizedEigenvalueProblem(newdim,newA,newB,cc,eig);
         }
 
         outfile->Printf("    state");
@@ -9352,110 +9254,16 @@ void ERPASolver::OldExtendedRPA(std::string type) {
 
 }
 
-// void ERPASolver::TransitionDensity_SpinAdapted(double *C,  double * D1a, double * D1b, double * TDa, double * TDb, int nh, int h) {
-//
-//    // Tvo: 
-//
-//    // T_{pq} = <v| p*q |0>
-//    // T_{pq} = <0| [ Ov , p*q ] |0>
-//    // T_{pq} = D(j,q)c(p,j) - D(p,i)c(i,q)
-//
-//
-//   // AED: 2/13/18 I'm not sure if the basis for the sum over pq should be the ERPA basis or the ab basis
-//   for (int pq = 0; pq < nh; pq++) {
-//   
-//       int p = bas_erpa_sym[h][pq][0];
-//       int q = bas_erpa_sym[h][pq][1];
-//   
-//       int hp = symmetry[p];
-//       int hq = symmetry[q];
-//
-//       double duma = 0.0;
-//       double dumb = 0.0;
-//
-//       for (int jj = 0; jj < nmopi_[hq]; jj++) {
-//
-//           int j  = jj + pitzer_offset[hq];
-//
-//           int pj = ibas_erpa_sym[h][p][j];
-//
-//           // check if pj is a proper ERPA excitation:
-//           if ( pj == -999 ) continue;
-//
-//           duma += D1a[j*amo_+q] * C[pj];
-//           dumb += D1b[j*amo_+q] * C[pj];
-//       }
-//
-//       for (int ii = 0; ii < nmopi_[hp]; ii++) {
-//
-//           int i = ii + pitzer_offset[hp];
-//
-//           int iq = ibas_erpa_sym[h][i][q];
-//
-//           // check if iq is a proper ERPA excitation:
-//           if ( iq == -999 ) continue;
-//
-//           duma -= D1a[p*amo_+i] * C[iq];
-//           dumb -= D1b[p*amo_+i] * C[iq];
-//       }
-//
-//       TDa[p*amo_+q] = 1.0/sqrt(2.0) * duma;
-//       TDb[p*amo_+q] = 1.0/sqrt(2.0) * dumb;
-//   }
-//  }
-void ERPASolver::TransitionDensity_SpinAdaptedl(double *C,  double * D1a, double * D1b, double * TDla, double * TDlb, int nh, int h) {
- //Build left transition density 
- // T_{pq} = C(j,i)<0| [j*i, p*q ] |0>
- //Tl[pq]=<v|p*q|0>= C(j,p)*D(j,q)-C(q,i)*D(p,i)
+void ERPASolver::TransitionDensity_SpinAdapted(double * C, double * D1a, double * D1b, double * TDa, double * TDb, int nh, int h) {
 
-    for (int pq = 0; pq < nh; pq++) {
-    
-        int p = bas_erpa_sym[h][pq][0];
-        int q = bas_erpa_sym[h][pq][1];
-    
-        int hp = symmetry[p];
-        int hq = symmetry[q];
+    // Tvo: 
 
-        double duma = 0.0;
-        double dumb = 0.0;
-
-        for (int jj = 0; jj < nmopi_[hq]; jj++) {
-
-            int j  = jj + pitzer_offset[hq];
-
-            int jp = ibas_erpa_sym[h][j][p];
-
-            // check if pj is a proper ERPA excitation:
-            if ( jp == -999 ) continue;
-
-            duma += D1a[j*amo_+q] * C[jp];
-            dumb += D1b[j*amo_+q] * C[jp];
-        }
-
-        for (int ii = 0; ii < nmopi_[hp]; ii++) {
-
-            int i = ii + pitzer_offset[hp];
-
-            int qi = ibas_erpa_sym[h][q][i];
-
-            // check if iq is a proper ERPA excitation:
-            if ( qi == -999 ) continue;
-
-            duma -= D1a[p*amo_+i] * C[qi];
-            dumb -= D1b[p*amo_+i] * C[qi];
-        }
-
-        TDla[p*amo_+q] = 1.0/sqrt(2.0) * duma;
-       // outfile->Printf("\ndumal %20.12lf\n", duma);
-        TDlb[p*amo_+q] = 1.0/sqrt(2.0) * dumb;
-    }
-  }
-void ERPASolver::TransitionDensity_SpinAdapted(double *C,  double * D1a, double * D1b, double * TDa, double * TDb, int nh, int h) {
-  //Right transtion density
-  // T_{pq} = <0| [ p*q, j*i ] |0>*C(i,j)
-  // T_{pq} = -D(j,q)c(p,j) + D(p,i)c(i,q)
+    // T_{pq} = <v| p*q |0>
+    // T_{pq} = <0| [ Ov , p*q ] |0>
+    // T_{pq} = D(j,q)c(p,j) - D(p,i)c(i,q)
 
 
+    // AED: 2/13/18 I'm not sure if the basis for the sum over pq should be the ERPA basis or the ab basis
     for (int pq = 0; pq < nh; pq++) {
     
         int p = bas_erpa_sym[h][pq][0];
@@ -9476,8 +9284,8 @@ void ERPASolver::TransitionDensity_SpinAdapted(double *C,  double * D1a, double 
             // check if pj is a proper ERPA excitation:
             if ( pj == -999 ) continue;
 
-            duma -= D1a[j*amo_+q] * C[pj];
-            dumb -= D1b[j*amo_+q] * C[pj];
+            duma += D1a[j*amo_+q] * C[pj];
+            dumb += D1b[j*amo_+q] * C[pj];
         }
 
         for (int ii = 0; ii < nmopi_[hp]; ii++) {
@@ -9489,18 +9297,15 @@ void ERPASolver::TransitionDensity_SpinAdapted(double *C,  double * D1a, double 
             // check if iq is a proper ERPA excitation:
             if ( iq == -999 ) continue;
 
-            duma += D1a[p*amo_+i] * C[iq];
-            dumb += D1b[p*amo_+i] * C[iq];
+            duma -= D1a[p*amo_+i] * C[iq];
+            dumb -= D1b[p*amo_+i] * C[iq];
         }
 
         TDa[p*amo_+q] = 1.0/sqrt(2.0) * duma;
-       // outfile->Printf("\nduma %20.12lf\n", duma);
         TDb[p*amo_+q] = 1.0/sqrt(2.0) * dumb;
     }
+
 }
-                                                      
-
-
 void ERPASolver::TransitionDensity(double * C, double * D1a, double * D1b, double * TDa, double * TDb, int nh, int h) {
 
     // Tvo: 

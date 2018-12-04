@@ -1,4 +1,4 @@
-# Install script for directory: /edfs/users/namvu/chem/deprince-group/plugins/erpa/new_erpa/erpa
+# Install script for directory: /edfs/users/namvu/chem/deprince-group/plugins/erpa
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -40,5 +40,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/edfs/users/namvu/chem/deprince-group/plugins/erpa/new_erpa/erpa/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/edfs/users/namvu/chem/deprince-group/plugins/erpa/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

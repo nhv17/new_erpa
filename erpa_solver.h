@@ -233,7 +233,8 @@ class ERPASolver: public Wavefunction{
     void ReadOPDM(double * D1a, double * D1b);
 
     /// read v2RDM-CASSCF 2RDM from disk
-    void ReadTPDM(double * D2aa, double * D2bb, double * D2ab, double * D1a, double * D1b, double * tei);
+    void ReadTPDM(double * D2aa, double * D2bb, double * D2ab, double * D1a, double * D1b);
+
 
     /// read v2RDM-CASSCF 2RDM from disk (low memory)
     void ReadTPDMLowMemory(double * D2aa, double * D2bb, double * D2ab, double * D1a, double * D1b);

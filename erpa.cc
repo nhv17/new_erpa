@@ -58,6 +58,15 @@ int read_options(std::string name, Options& options)
         /*- Do include active/active excitations in the ERPA excited-state wave functions? -*/
         options.add_bool("ACTIVE_ACTIVE_EXCITATIONS", true);
 
+        /*- Do employ core-valence separation? -*/
+        options.add_bool("CORE_VALENCE_SEPARATION", false);
+
+        /*- Do AC specific to DOCI? -*/
+        options.add_bool("AC_DOCI", false);
+
+        /*- Use direct ERPA in AC DOCI? -*/
+        options.add_bool("DIRECT_ERPA", false);
+
         /*- Do spin adapt the ERPA equations? -*/
         options.add_bool("SPIN_ADAPT_ERPA", false);
 
@@ -120,6 +129,9 @@ SharedWavefunction erpa(SharedWavefunction ref_wfn, Options& options)
     //outfile->Printf("\n");
     //outfile->Printf("    ==> ERPA expansion: aa/bb <==\n");
     //outfile->Printf("\n");
+ 
+
+    bool is_doci = options.get_bool("AC_DOCI");
 
     // are we doing AC or ERPA excitaiton energies?
     if ( options.get_bool("ADIABATIC_CONNECTION") ) {
@@ -129,44 +141,56 @@ SharedWavefunction erpa(SharedWavefunction ref_wfn, Options& options)
         outfile->Printf("    ");
         outfile->Printf("               alpha");
         outfile->Printf("            w(alpha)\n");
-       // double e_ac0 = erpa->AlphaERPA(0.0,true,false);
-        //e_ac0       += erpa->AlphaERPA(0.0,false,false);
-        double e_ac0_s = erpa->DOCIAlphaERPA(0.0,true);
-        //e_ac0       += erpa->DOCIAlphaERPA(0.0,false);
-        double e_ac0_t = erpa->DOCIAlphaERPA(0.0,false);
-     //   double e_ac01_s = erpa->DOCIAlphaERPA(0.1,true);//using linear relationship between w and alpha (10/22/18)
-     //   double e_ac01_t = erpa->DOCIAlphaERPA(0.1,false);//10/22/18
+	double e_ac0_s = 0.0;
+	double e_ac0_t = 0.0;
+	double e_ac1_s = 0.0;
+	double e_ac1_t = 0.0;
+	double sum_s   = 0.0;
+	double sum_t   = 0.0;
+
+	if ( is_doci ) {
+
+            // AC-DOCI
+
+            double e_ac0_s = erpa->DOCIAlphaERPA(0.0,true);
+            double e_ac0_t = erpa->DOCIAlphaERPA(0.0,false);
+
+            sum_s = 0.0;
+            sum_t = 0.0;
+            for (int i = 1; i < 10; i++) {
+                sum_s += 2.0 * erpa->DOCIAlphaERPA(0.1 * i,true); 
+                sum_t += 2.0 * erpa->DOCIAlphaERPA(0.1 * i,false);
+            }
+
+            e_ac1_s = erpa->DOCIAlphaERPA(1.0,true);
+            e_ac1_t = erpa->DOCIAlphaERPA(1.0,false);
+
+	}else {
+
+            // AC-CASSCF
+	    
+            e_ac0_s = erpa->AlphaERPA(0.0,true,false);
+
+            sum_s = 0.0;
+            for (int i = 1; i < 10; i++) {
+                sum_s += 2.0 * erpa->AlphaERPA(0.1 * i,true,false);
+            }
+
+            e_ac1_s = erpa->AlphaERPA(1.0,true,false);
+
+	}
  
-        double sum = 0.0;
-        for (int i = 1; i < 10; i++) {
-           // sum += 2.0 * erpa->AlphaERPA(0.1 * i,true,false);
-            //sum += 2.0 * erpa->AlphaERPA(0.1 * i,false,false);
-              sum += 2.0 * erpa->DOCIAlphaERPA(0.1 * i,true); 
-              sum += 2.0 * erpa->DOCIAlphaERPA(0.1 * i,false);
-    //        sum += 2.0 * (e_ac01_s - e_ac0_s) * i + e_ac0_s; //this part used to get data based on 2 initial points
-    //        sum += 2.0 * (e_ac01_t - e_ac0_t) * i + e_ac0_t; 
-           
-        }
-    //        sum += (e_ac01_s - e_ac0_s) * 10 + e_ac0_s; 
-    //        sum += (e_ac01_t - e_ac0_t) * 10 + e_ac0_t; 
-       // double e_ac1 = erpa->AlphaERPA(1.0,true,false);
-       // e_ac1       += erpa->AlphaERPA(1.0,false);
-       double e_ac1_s = erpa->DOCIAlphaERPA(1.0,true);
-        //e_ac1       += erpa->DOCIAlphaERPA(1.0,false);
-       double e_ac1_t = erpa->DOCIAlphaERPA(1.0,false);
         outfile->Printf("\n");
 
-       double ac_corr  = (e_ac0_s + e_ac1_s + e_ac0_t + e_ac1_t + sum) * 0.1 / 2.0;
-       //   double ac_corr  = (e_ac0_s + 2.0 * e_ac01_s + e_ac0_t + 2.0 * e_ac01_t + sum) * 0.1 / 2.0;
-              
-      // double ac1_corr = (e_ac0 + e_ac1) / 2.0;
-        //double ac_corr  = (e_ac1 + sum) * 0.1 / 2.0;
-        //double ac1_corr = (e_ac1) / 2.0;
+        double ac_corr  = (e_ac0_s + e_ac1_s + e_ac0_t + e_ac1_t + sum_s + sum_t) * 0.1 / 2.0;
 
         outfile->Printf("    Reference energy             %20.12lf\n",Process::environment.globals["v2RDM TOTAL ENERGY"]);
         outfile->Printf("\n");
-       // outfile->Printf("    * AC1 correlation energy     %20.12lf\n",ac1_corr);
-       // outfile->Printf("    * AC1 total energy           %20.12lf\n",Process::environment.globals["v2RDM TOTAL ENERGY"] + ac1_corr);
+        if ( !is_doci ) {
+            double ac1_corr = (e_ac0_s + e_ac1_s) / 2.0;
+            outfile->Printf("    * AC1 correlation energy     %20.12lf\n",ac1_corr);
+            outfile->Printf("    * AC1 total energy           %20.12lf\n",Process::environment.globals["v2RDM TOTAL ENERGY"] + ac1_corr);
+	}
         outfile->Printf("\n");
         outfile->Printf("    * AC correlation energy      %20.12lf\n",ac_corr);
         outfile->Printf("    * AC total energy            %20.12lf\n",Process::environment.globals["v2RDM TOTAL ENERGY"] + ac_corr);
